@@ -1,0 +1,107 @@
+---
+title: "Reproducible Research Week 2 Assignment"
+author: "Cherylyn Ee"
+date: "12/1/2016"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Introduction
+
+It is now possible to collect a large amount of data about personal movement using activity monitoring devices such as a Fitbit, Nike Fuelband, or Jawbone Up. These type of devices are part of the ???quantified self??? movement ??? a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. 
+This assignment makes use of data from a personal activity monitoring device. This device collects data at 5 minute intervals through out the day. The data consists of two months of data from an anonymous individual collected during the months of October and November, 2012 and include the number of steps taken in 5 minute intervals each day.
+
+## Loading & Preprocessing Data
+
+Download the data from the link into working directory and unzip file. File consists of a csv dataset with 17568 observations with 3 variables.
+
+```{r data}
+download.file("https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2Factivity.zip","Reproducible_Research-Wk2.zip")
+unzip("Reproducible_Research-Wk2.zip")
+activity <- read.csv("activity.csv")
+str(activity)
+activity$date <- as.Date(activity$date)
+head(activity)
+```
+
+## What is mean total number of steps taken per day?
+1. Calculate the total number of steps taken per day.
+2. Make a histogram of the total number of steps taken each day
+3. Calculate and report the mean and median of the total number of steps taken    per day
+
+```{r mean}
+sum(!is.na(activity$steps))
+stepday <- data.frame(aggregate(steps ~ date, activity, sum))
+stepday
+```
+```{r histogram, echo=FALSE}
+hist(stepday$steps,breaks = 10, main=paste("Histogram of no. of steps"), col = "orchid", xlab = "No. of steps")
+```
+```{r summary}
+summary(stepday$steps)
+```
+
+## What is the average daily activity pattern?
+
+1. Time series plot of the 5-minute interval (x-axis) and average number of       steps taken, averaged across all days (y-axis)
+2. Which 5-minute interval, on average across all the days in the dataset,        contains the maximum number of steps?
+
+```{r stepinterval, echo = FALSE}
+stepinterval <- data.frame(aggregate(steps ~ interval, activity, mean))
+plot(stepinterval$interval, stepinterval$steps, type="l", col="green" , lwd=2, main = "Average no. of steps in interval", xlab = "5-minute interval", ylab = "Average no. of steps")
+stepinterval[stepinterval$steps == max(stepinterval$steps),]
+```
+
+## Imputing missing values
+
+```{r}
+sapply(activity, function(x) sum(is.na(x)))
+activity_new <- activity
+meanstep <- mean(stepinterval$steps)
+activity_new$steps[is.na(activity_new$steps)] <- mean(stepinterval$steps)
+sum(is.na(activity_new$steps))
+```
+
+There are 2304 missing values in steps variable and this may introduce bias into some calculations and summaries of data. 
+Therefore, we will impute missing values with the mean steps per interval: `r meanstep`.
+
+After imputing missing data with the mean. A comparison of the original and new dataset is made.
+
+```{r histogram2, echo=FALSE, fig.height=4}
+stepday_new <- data.frame(aggregate(steps ~ date, activity_new, sum))
+par(mfrow = c(1,2))
+hist(stepday$steps,breaks = 10, main=paste("Histogram of no. of steps"), col = "orchid", xlab = "No. of steps")
+hist(stepday_new$steps,breaks = 10, main=paste("Histogram of no. of steps"), col = "orchid", xlab = "No. of steps")
+```
+
+New mean & median as follows:
+```{r}
+mean(stepday_new$steps)
+median(stepday_new$steps)
+```
+
+Estimate of total daily no. of steps:
+Mean of new data set after imputing missing values is equal to the original, however, median of new data set is slightly higher an equal to the mean. 
+
+## Are there differences in activity patterns between weekdays and weekends?
+
+Create a new factor variable in the dataset with two levels "weekday" and "weekend" indicating whether a given date is a weekday or weekend day.
+
+```{r, message = FALSE}
+library(dplyr)
+weekend <- c("Saturday", "Sunday")
+activity_new <- mutate(activity_new, day = ifelse(weekdays(activity_new$date) %in% weekend, "weekend", "weekday"))
+```
+
+Make a panel plot containing a time series plot (i.e. type= "l") of the 5-minute interval (x-axis) and the average number of steps taken, averaged across all weekday days or weekend days (y-axis).
+
+```{r, echo=FALSE, message=FALSE}
+library(lattice)
+stepinterval_new <- data.frame(aggregate(steps ~ interval + day, activity_new, mean))
+xyplot(steps ~ interval|day, data = stepinterval_new, type ="l", layuout = c(1,2), main = "Average no. of steps averaged across all weekdays or weekends", ylab = "Number of steps", xlab = "Interval")
+```
+
+There's a difference in patterns when comparing average no of steps between weekday and weekend. 
